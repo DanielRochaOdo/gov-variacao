@@ -4,6 +4,13 @@ Mailing/
 *.jpg
 *.png
 *.xlsx
-*.txt
+*.xlsm
+*.xltx
+*.xltm
+arquivo envio teste*.txt
+retorno*.txt
+saida_consignacao.txt
+variacao_exemplo_consignacao_VARIACAO*.txt
+manual_variacao_extraido.txt
 __pycache__/
 *.pyc

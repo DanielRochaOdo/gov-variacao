@@ -3,13 +3,12 @@
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "app.py"
+      "dest": "api/index.py"
     }
   ],
   "functions": {
-    "app.py": {
-      "excludeFiles": "{Mailing/**,*.pdf,*.jpeg,*.xlsx,*.txt,__pycache__/**}"
+    "api/index.py": {
+      "excludeFiles": "{Mailing/**,*.pdf,*.jpeg,*.jpg,*.png,*.xlsx,*.xlsm,*.xltx,*.xltm,__pycache__/**}"
     }
   }
 }
-
