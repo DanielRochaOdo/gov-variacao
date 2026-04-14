@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Conversor Consignacao</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="background"></div>
+    <main class="container">
+      <section class="hero">
+        <p class="badge">Conversor Oficial</p>
+        <h1>RETORNO e VARIACAO em um unico fluxo</h1>
+        <p>
+          Envie a planilha de consignacao, selecione o tipo do layout e baixe o TXT gerado em segundos.
+        </p>
+      </section>
+
+      <section class="card">
+        <form id="form-conversao">
+          <label for="tipo">Tipo de arquivo</label>
+          <select id="tipo" name="tipo" required>
+            <option value="RETORNO">RETORNO</option>
+            <option value="VARIACAO" selected>VARIACAO</option>
+          </select>
+
+          <label for="arquivo">Planilha (.xlsx)</label>
+          <input id="arquivo" name="arquivo" type="file" accept=".xlsx,.xlsm,.xltx,.xltm" required />
+
+          <button id="botao-converter" type="submit">Converter e baixar TXT</button>
+        </form>
+
+        <p id="status" class="status" aria-live="polite"></p>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

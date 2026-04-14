@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+
+# IDE / OS
+.DS_Store
+Thumbs.db
+
+# Build / temp
+manual_variacao_extraido.txt
+retorno_consignacao.txt
+saida_consignacao.txt
+variacao_exemplo_consignacao_VARIACAO*.txt
+
+# Dados locais (nao versionar)
+Mailing/
+*.xlsx
+*.xlsm
+*.pdf
+*.jpeg
+*.jpg
+*.png
+arquivo envio teste*.txt
+retorno*.txt

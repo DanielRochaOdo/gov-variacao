@@ -1,0 +1,14 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "app.py"
+    }
+  ],
+  "functions": {
+    "app.py": {
+      "excludeFiles": "{Mailing/**,*.pdf,*.jpeg,*.xlsx,*.txt,__pycache__/**}"
+    }
+  }
+}

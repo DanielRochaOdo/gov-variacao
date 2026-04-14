@@ -1,0 +1,9 @@
+Mailing/
+*.pdf
+*.jpeg
+*.jpg
+*.png
+*.xlsx
+*.txt
+__pycache__/
+*.pyc
