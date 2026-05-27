@@ -1,0 +1,178 @@
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap");
+
+:root {
+  --tw-color-white: #ffffff;
+  --tw-color-near-black: #1c1c1e;
+  --tw-color-blue-450: #5b76fe;
+  --tw-color-actionable-pressed: #2a41b6;
+  --tw-color-success-accent: #00b473;
+  --tw-color-slate: #555a6a;
+  --tw-color-input-placeholder: #a5a8b5;
+  --tw-color-border: #c7cad5;
+  --tw-color-ring: rgb(224, 226, 232);
+  --tw-color-coral-light: #ffc6c6;
+  --tw-color-rose-light: #ffd8f4;
+  --tw-color-teal-light: #c3faf5;
+  --tw-color-orange-light: #ffe6cd;
+  --tw-color-pink-soft: #fde0f0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: "Noto Sans", "Segoe UI", sans-serif;
+  color: var(--tw-color-near-black);
+  background: linear-gradient(148deg, #ffffff 0%, #fff9f2 48%, #f5faff 100%);
+}
+
+.container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+}
+
+.card {
+  width: min(920px, 100%);
+  background: var(--tw-color-white);
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: var(--tw-color-ring) 0 0 0 1px;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0 0 10px;
+  font-family: "Roobert PRO Medium", "Roobert PRO", "Noto Sans", sans-serif;
+  font-weight: 400;
+  line-height: 1.15;
+}
+
+h1 {
+  font-size: clamp(2rem, 3.2vw, 3rem);
+  letter-spacing: -0.04em;
+}
+
+h2 {
+  font-size: 1.5rem;
+  letter-spacing: -0.02em;
+}
+
+h3 {
+  font-size: 1.125rem;
+}
+
+p {
+  margin: 8px 0;
+  color: var(--tw-color-slate);
+}
+
+.form {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+label {
+  font-family: "Roobert PRO Medium", "Noto Sans", sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+input[type="file"] {
+  border: 1px solid #e9eaef;
+  border-radius: 8px;
+  padding: 12px;
+  background: #ffffff;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+button,
+.linkButton {
+  border: none;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-family: "Roobert PRO Medium", "Noto Sans", sans-serif;
+  font-size: 1.02rem;
+  font-weight: 700;
+  line-height: 1.29;
+  letter-spacing: 0.175px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+  background: var(--tw-color-blue-450);
+  color: var(--tw-color-white);
+}
+
+button:hover,
+.linkButton:hover {
+  background: var(--tw-color-actionable-pressed);
+}
+
+button.secondary {
+  background: var(--tw-color-white);
+  color: var(--tw-color-near-black);
+  border: 1px solid var(--tw-color-border);
+  box-shadow: var(--tw-color-ring) 0 0 0 1px;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error {
+  color: #600000;
+  font-weight: 700;
+}
+
+.success {
+  color: var(--tw-color-success-accent);
+  font-weight: 700;
+}
+
+.details {
+  color: #600000;
+  margin-top: 6px;
+  padding-left: 20px;
+}
+
+.summary {
+  margin-top: 18px;
+  border-radius: 12px;
+  padding: 14px;
+  background: var(--tw-color-rose-light);
+  box-shadow: var(--tw-color-ring) 0 0 0 1px;
+}
+
+.summary ul {
+  margin: 6px 0 0;
+  padding-left: 20px;
+  color: var(--tw-color-slate);
+}
+
+@media (max-width: 896px) {
+  .card {
+    padding: 18px;
+  }
+
+  h1 {
+    font-size: 2rem;
+  }
+}

@@ -10,10 +10,10 @@
     <div class="background"></div>
     <main class="container">
       <section class="hero">
-        <p class="badge">Conversor Oficial</p>
-        <h1>RETORNO e VARIACAO em um unico fluxo</h1>
+        <p class="badge">Envio Simplificado</p>
+        <h1>Gere seu arquivo de pagamento em poucos passos</h1>
         <p>
-          Envie a planilha de consignacao, selecione o tipo do layout e baixe o TXT gerado em segundos.
+          Escolha o tipo de operacao, envie a planilha e baixe o arquivo pronto para envio ao banco.
         </p>
       </section>
 
@@ -21,12 +21,35 @@
         <form id="form-conversao">
           <label for="tipo">Tipo de arquivo</label>
           <select id="tipo" name="tipo" required>
+            <option value="">Selecione o tipo...</option>
             <option value="RETORNO">RETORNO</option>
-            <option value="VARIACAO" selected>VARIACAO</option>
+            <option value="VARIACAO">VARIACAO</option>
+            <option value="BRADESCO_TRANSFERENCIA">PAGAMENTO BRADESCO &gt; PIX</option>
+            <option value="BRADESCO_BOLETO">PAGAMENTO BRADESCO &gt; BOLETO</option>
           </select>
 
-          <label for="arquivo">Planilha (.xlsx)</label>
-          <input id="arquivo" name="arquivo" type="file" accept=".xlsx,.xlsm,.xltx,.xltm" required />
+          <label for="arquivo">Arquivo (.xlsx)</label>
+          <div id="dropzone" class="dropzone" role="button" tabindex="0" aria-describedby="dropzone-help">
+            <p class="dropzone-title">Arraste o arquivo aqui ou clique para selecionar</p>
+            <p id="dropzone-help" class="dropzone-subtitle">Formatos aceitos: .xlsx, .xlsm, .xltx, .xltm</p>
+            <p id="arquivo-selecionado" class="dropzone-filename">Nenhum arquivo selecionado</p>
+            <input
+              id="arquivo"
+              name="arquivo"
+              class="dropzone-input"
+              type="file"
+              accept=".xlsx,.xlsm,.xltx,.xltm"
+            />
+          </div>
+
+          <a
+            id="botao-modelo-transferencia"
+            class="model-button hidden"
+            href="/api/modelo/bradesco-transferencia"
+            download
+          >
+            Baixar modelo base Bradesco PIX
+          </a>
 
           <button id="botao-converter" type="submit">Converter e baixar TXT</button>
         </form>

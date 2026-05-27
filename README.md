@@ -1,4 +1,4 @@
-# Conversor Consignacao (RETORNO e VARIACAO)
+# Conversor Consignacao (RETORNO, VARIACAO e Bradesco)
 
 Aplicacao web em Flask para converter planilhas Excel (`.xlsx`) em TXT no layout de consignacao.
 
@@ -6,6 +6,10 @@ Aplicacao web em Flask para converter planilhas Excel (`.xlsx`) em TXT no layout
 
 - Conversao de arquivos `RETORNO`
 - Conversao de arquivos `VARIACAO`
+- Conversao de arquivos `Pagamento Bradesco > Transferencia` (logica das paginas 16 a 19)
+- Conversao de arquivos `Pagamento Bradesco > Boleto` (logica das paginas 23 a 27)
+- Entrada somente via planilha Excel (`.xlsx`, `.xlsm`, `.xltx`, `.xltm`) para todos os tipos
+- Em `Pagamento Bradesco > Transferencia`, quando houver pagamento com valor `0,00`, o download nao e bloqueado e o frontend exibe alerta com os dados bancarios do favorecido
 - Download imediato do arquivo `.txt` apos processamento
 - Interface web leve, responsiva e intuitiva
 
@@ -26,7 +30,16 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Acesse: `http://127.0.0.1:5000`
+Acesse no mesmo computador: `http://127.0.0.1:5000`  
+Na rede local: `http://SEU_IP_LOCAL:5000`
+
+Atalhos via npm (opcional):
+
+```bash
+npm run dev
+# ou
+npm run api
+```
 
 ## Deploy na Vercel
 

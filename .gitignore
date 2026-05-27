@@ -15,6 +15,10 @@ manual_variacao_extraido.txt
 retorno_consignacao.txt
 saida_consignacao.txt
 variacao_exemplo_consignacao_VARIACAO*.txt
+.next/
+node_modules/
+out/
+*.tsbuildinfo
 
 # Dados locais (nao versionar)
 Mailing/
