@@ -34,6 +34,36 @@ NOMES_EXIBICAO = {
     TIPO_BRADESCO_BOLETO: "PAGAMENTO BRADESCO > BOLETO",
 }
 
+DEFAULTS_BRADESCO_TRANSFERENCIA_FIXOS: Dict[str, Any] = {
+    "banco": "237",
+    "tipo_inscricao_empresa": "2",
+    "numero_inscricao_empresa": "03187913000157",
+    "convenio": "628608",
+    "agencia_empresa": "0564",
+    "dv_agencia_empresa": "9",
+    "conta_empresa": "9350",
+    "dv_conta_empresa": "5",
+    "nome_empresa": "ODONTOART PLANOS ODONTOLOGICOS",
+    "nome_banco": "BANCO BRADESCO S.A",
+    "codigo_remessa_retorno": "1",
+    "nsa": "1",
+    "densidade": "1600",
+    "lote": "1",
+    "tipo_servico": "20",
+    "forma_lancamento": "45",
+    "cidade": "FORTALEZA",
+    "cep": "60345",
+    "complemento_cep": "602",
+    "estado": "CE",
+    "indicativo_forma_pagamento": "1",
+    "tipo_movimento": "0",
+    "codigo_instrucao_movimento": "09",
+    "informacao10": "",
+    "informacao11": "",
+    "informacao12": "01 0000000000000",
+    "codigo_finalidade_ted": "00010",
+}
+
 
 def gerar_txt_por_tipo(excel_file: BufferedIOBase | BytesIO, tipo: str) -> str:
     tipo_normalizado = (tipo or "").strip().upper()
@@ -343,12 +373,6 @@ def gerar_layout_bradesco_transferencia(excel_file: BufferedIOBase | BytesIO) ->
     registros = _ler_planilha_excel(
         excel_file,
         required_headers=[
-            "tipo_inscricao_empresa",
-            "numero_inscricao_empresa",
-            "convenio",
-            "agencia_empresa",
-            "conta_empresa",
-            "nome_empresa",
             "nome_favorecido",
             "data_pagamento",
             "valor_pagamento",
@@ -360,6 +384,8 @@ def gerar_layout_bradesco_transferencia(excel_file: BufferedIOBase | BytesIO) ->
     )
     if not registros:
         raise ConversionError("Planilha vazia para BRADESCO_TRANSFERENCIA.")
+
+    registros = [_aplicar_defaults_bradesco_transferencia(row) for row in registros]
 
     base = _base_bradesco(registros[0])
     # Transferencia Bradesco exige identificacao PIX no header do arquivo (posicoes 172-174).
@@ -572,12 +598,6 @@ def _detectar_layout(headers: List[str]) -> str:
         "proxima_parcela",
     }
     bradesco_transferencia_base = {
-        "tipo_inscricao_empresa",
-        "numero_inscricao_empresa",
-        "convenio",
-        "agencia_empresa",
-        "conta_empresa",
-        "nome_empresa",
         "nome_favorecido",
         "data_pagamento",
         "valor_pagamento",
@@ -610,8 +630,8 @@ def _detectar_layout(headers: List[str]) -> str:
 
 def _base_bradesco(row: Mapping[str, Any]) -> Dict[str, str]:
     agora = datetime.now()
-    data_geracao = _formata_data_cnab(row.get("data_geracao"), default=agora.strftime("%d%m%Y"))
-    hora_geracao = _formata_hora_cnab(row.get("hora_geracao"), default=agora.strftime("%H%M%S"))
+    data_geracao = agora.strftime("%d%m%Y")
+    hora_geracao = agora.strftime("%H%M%S")
 
     agencia_combinada = _primeiro_valor_preenchido(
         row,
@@ -946,33 +966,37 @@ def _dados_bancarios_favorecido_segmento_a(
 
     if banco_favorecido == "000":
         raise ConversionError(
-            f"Linha {linha}: banco_favorecido (coluna AL) obrigatorio na forma 05."
+            f"Linha {linha}: banco_favorecido obrigatorio na forma 05."
+        )
+    if banco_favorecido in {"001", "341"}:
+        raise ConversionError(
+            f"Linha {linha}: banco_favorecido nao aceita os codigos 001 e 341."
         )
 
     if agencia_favorecido_digitos == "":
         raise ConversionError(
-            f"Linha {linha}: agencia_favorecido (coluna AM) obrigatoria na forma 05. Informe 4 ou 5 digitos."
+            f"Linha {linha}: agencia_favorecido obrigatoria na forma 05. Informe 4 ou 5 digitos."
         )
-    if len(agencia_favorecido_digitos) not in {4, 5}:
+    if len(agencia_favorecido_digitos) > 5:
         raise ConversionError(
-            f"Linha {linha}: agencia_favorecido (coluna AM) invalida. Use 4 ou 5 digitos."
+            f"Linha {linha}: agencia_favorecido invalida. Use de 1 a 5 digitos."
         )
     agencia_favorecido = agencia_favorecido_digitos.zfill(5)
 
     dv_agencia_favorecido_digitos = _somente_digitos(dv_agencia_favorecido_raw)
     if dv_agencia_favorecido_digitos == "":
         raise ConversionError(
-            f"Linha {linha}: dv_agencia_favorecido (coluna AN) obrigatorio na forma 05. Informe 1 digito."
+            f"Linha {linha}: dv_agencia_favorecido obrigatorio na forma 05. Informe 1 digito."
         )
     if len(dv_agencia_favorecido_digitos) != 1:
         raise ConversionError(
-            f"Linha {linha}: dv_agencia_favorecido (coluna AN) invalido. Use somente 1 digito."
+            f"Linha {linha}: dv_agencia_favorecido invalido. Use somente 1 digito."
         )
     dv_agencia_favorecido = dv_agencia_favorecido_digitos
 
     if conta_favorecido == "000000000000":
         raise ConversionError(
-            f"Linha {linha}: conta_favorecido (coluna AO) obrigatoria na forma 05."
+            f"Linha {linha}: conta_favorecido obrigatoria na forma 05."
         )
 
     return (
@@ -1076,6 +1100,13 @@ def _codigo_finalidade_ted(row: Mapping[str, Any]) -> str:
             "Codigo finalidade TED invalido. Informe um codigo numerico de 5 digitos (ex.: 00010)."
         )
     return digitos[-5:].zfill(5)
+
+
+def _aplicar_defaults_bradesco_transferencia(row: Mapping[str, Any]) -> Dict[str, Any]:
+    registro = dict(row)
+    for chave, valor in DEFAULTS_BRADESCO_TRANSFERENCIA_FIXOS.items():
+        registro[chave] = valor
+    return registro
 
 
 def _codigo_finalidade_complementar(row: Mapping[str, Any]) -> str:

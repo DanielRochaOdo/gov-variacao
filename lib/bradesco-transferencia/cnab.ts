@@ -467,13 +467,13 @@ function validateRows(rows: CanonicalRecord[]): { warnings: string[] } {
       }
 
       const agenciaDigits = onlyDigits(row.agencia_favorecido);
-      if (agenciaDigits.length !== 4 && agenciaDigits.length !== 5) {
-        errors.push("Linha " + line + ": agencia_favorecido (coluna AM) deve ter 4 ou 5 digitos na forma 05. Quando vier com 4, sera preenchido com zero a esquerda no TXT.");
+      if (agenciaDigits.length < 1 || agenciaDigits.length > 5) {
+        errors.push("Linha " + line + ": agencia_favorecido deve ter de 1 a 5 digitos na forma 05. O TXT preenche com zeros a esquerda ate 5.");
       }
 
       const dvAgenciaDigits = onlyDigits(row.dv_agencia_favorecido);
       if (dvAgenciaDigits.length !== 1) {
-        errors.push("Linha " + line + ": dv_agencia_favorecido (coluna AN) deve ter exatamente 1 digito na forma 05.");
+        errors.push("Linha " + line + ": dv_agencia_favorecido deve ter exatamente 1 digito na forma 05.");
       }
     }
   }

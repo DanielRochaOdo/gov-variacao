@@ -32,6 +32,23 @@ def _nome_arquivo_rem_bradesco_pix() -> str:
     return f"{base}{sufixo}.rem"
 
 
+def _resumo_preview_bradesco_transferencia(conteudo_txt: str) -> tuple[int, int]:
+    linhas = conteudo_txt.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    total_contas = 0
+    total_centavos = 0
+
+    for linha in linhas:
+        if len(linha) < 240:
+            continue
+        if linha[7] != "3" or linha[13] != "A":
+            continue
+        total_contas += 1
+        valor_centavos = int("".join(ch for ch in linha[119:134] if ch.isdigit()) or "0")
+        total_centavos += valor_centavos
+
+    return total_contas, total_centavos
+
+
 @app.get("/")
 def index() -> str:
     return render_template("index.html")
@@ -96,6 +113,10 @@ def converter() -> Response:
 
     headers = {"Content-Disposition": f'attachment; filename="{nome_saida}"'}
     if tipo == TIPO_BRADESCO_TRANSFERENCIA:
+        contas_total, valor_total_centavos = _resumo_preview_bradesco_transferencia(conteudo_txt)
+        headers["X-Preview-Contas"] = str(contas_total)
+        headers["X-Preview-Valor-Centavos"] = str(valor_total_centavos)
+
         alertas = listar_alertas_valor_zero_bradesco_transferencia(conteudo_txt)
         total_alertas = len(alertas)
         if total_alertas > 0:

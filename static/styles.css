@@ -68,6 +68,56 @@ body {
   max-width: 58ch;
 }
 
+.preview-panel {
+  margin-top: 1.2rem;
+  min-height: 120px;
+  border-radius: 14px;
+  border: 1px solid #d7dbe7;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.92), rgba(247, 250, 255, 0.86));
+  box-shadow: 0 10px 26px rgba(35, 48, 86, 0.07);
+  padding: 1.1rem 1.15rem;
+  font-size: 0.98rem;
+  line-height: 1.45;
+  color: var(--tw-color-slate);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.preview-panel.ok {
+  color: var(--tw-color-near-black);
+}
+
+.preview-empty {
+  margin: 0;
+  color: #667189;
+}
+
+.preview-title {
+  margin: 0 0 0.6rem;
+  font-weight: 700;
+  color: #243150;
+}
+
+.preview-content {
+  width: 100%;
+}
+
+.preview-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem 1rem;
+}
+
+.preview-metric {
+  margin: 0;
+  color: #2a334a;
+}
+
+.preview-metric strong {
+  color: #111827;
+}
+
 .badge {
   display: inline-block;
   margin-bottom: 0.95rem;
@@ -230,6 +280,7 @@ button:disabled {
   min-height: 1.4rem;
   font-size: 0.95rem;
   line-height: 1.5;
+  font-weight: 600;
 }
 
 .status.ok {
@@ -254,5 +305,13 @@ button:disabled {
   .hero h1 {
     font-size: 2.1rem;
     letter-spacing: -0.03em;
+  }
+
+  .preview-panel {
+    min-height: 110px;
+  }
+
+  .preview-metrics {
+    grid-template-columns: 1fr;
   }
 }

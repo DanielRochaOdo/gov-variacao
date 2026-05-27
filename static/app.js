@@ -6,6 +6,7 @@ const typeInput = document.getElementById("tipo");
 const modelTransferButton = document.getElementById("botao-modelo-transferencia");
 const dropzone = document.getElementById("dropzone");
 const selectedFileNameNode = document.getElementById("arquivo-selecionado");
+const previewResumoNode = document.getElementById("preview-resumo");
 const ACCEPT_EXCEL = ".xlsx,.xlsm,.xltx,.xltm";
 let droppedFile = null;
 
@@ -13,6 +14,45 @@ function setStatus(message, kind) {
   statusNode.textContent = message || "";
   statusNode.classList.remove("ok", "err", "warn");
   if (kind) statusNode.classList.add(kind);
+}
+
+function limparPreviewResumo() {
+  if (!previewResumoNode) return;
+  previewResumoNode.innerHTML = "<p class=\"preview-empty\">O resumo da remessa aparece aqui apos a conversao.</p>";
+  previewResumoNode.classList.remove("ok", "err", "warn");
+}
+
+function formatarCentavosParaBRL(centavos) {
+  const valor = Number(centavos || 0) / 100;
+  return valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function renderizarPreviewResumo(response) {
+  if (!previewResumoNode) return;
+  const contasRaw = response.headers.get("X-Preview-Contas");
+  const valorCentavosRaw = response.headers.get("X-Preview-Valor-Centavos");
+  if (!contasRaw || !valorCentavosRaw) {
+    limparPreviewResumo();
+    return;
+  }
+
+  const contas = Number.parseInt(contasRaw, 10);
+  const valorCentavos = Number.parseInt(valorCentavosRaw, 10);
+  if (!Number.isFinite(contas) || !Number.isFinite(valorCentavos)) {
+    limparPreviewResumo();
+    return;
+  }
+
+  previewResumoNode.innerHTML = [
+    "<div class=\"preview-content\">",
+    "<p class=\"preview-title\">Preview da remessa</p>",
+    "<div class=\"preview-metrics\">",
+    `<p class=\"preview-metric\">Numero de contas: <strong>${contas}</strong></p>`,
+    `<p class=\"preview-metric\">Somatorio total: <strong>R$ ${formatarCentavosParaBRL(valorCentavos)}</strong></p>`,
+    "</div>",
+    "</div>",
+  ].join("");
+  previewResumoNode.classList.add("ok");
 }
 
 function atualizarFiltroArquivo() {
@@ -93,6 +133,7 @@ form.addEventListener("submit", async (event) => {
   }
 
   submitButton.disabled = true;
+  limparPreviewResumo();
   setStatus("Convertendo arquivo...", null);
 
   try {
@@ -120,6 +161,7 @@ form.addEventListener("submit", async (event) => {
     const alertaValorZero = lerAlertasValorZero(response);
     const fallbackName = typeInput.value === "BRADESCO_TRANSFERENCIA" ? "remessa_bradesco.rem" : "arquivo_convertido.txt";
     await baixarRespostaComoArquivo(response, fallbackName);
+    renderizarPreviewResumo(response);
     if (alertaValorZero.total > 0) {
       const itens = alertaValorZero.itens.map((item) => {
         const registro = item.registro_lote || "00000";
