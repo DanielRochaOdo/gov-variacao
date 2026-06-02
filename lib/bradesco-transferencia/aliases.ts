@@ -105,13 +105,11 @@ export const MODEL_HEADERS = [
   "forma_lancamento",
   "banco_favorecido",
   "agencia_favorecido",
-  "dv_agencia_favorecido",
   "conta_favorecido",
   "dv_conta_favorecido",
   "nome_favorecido",
   "data_pagamento",
   "valor_pagamento",
-  "forma_iniciacao",
   "tipo_inscricao_favorecido",
   "numero_inscricao_favorecido",
   "informacao12",
@@ -133,8 +131,7 @@ export const REQUIRED_BASE_HEADERS = [
   "nome_favorecido",
   "seu_numero",
   "data_pagamento",
-  "valor_pagamento",
-  "forma_iniciacao"
+  "valor_pagamento"
 ] as const;
 
 export { normalizeHeader };

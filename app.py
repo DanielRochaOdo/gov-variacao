@@ -22,6 +22,7 @@ from conversores import (
     TIPO_VARIACAO,
     gerar_txt_por_tipo,
     listar_alertas_valor_zero_bradesco_transferencia,
+    conciliar_pix_bradesco_duplicados,
 )
 
 app = Flask(__name__)
@@ -331,6 +332,53 @@ def baixar_modelo_bradesco_transferencia() -> Response:
         download_name="modelo_bradesco_transferencia.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
+
+@app.post("/api/pix-bradesco-conciliacao")
+def pix_bradesco_conciliacao() -> Response:
+    arquivo_excel = request.files.get("arquivo_excel")
+    arquivos_rem = request.files.getlist("arquivos_rem")
+
+    if arquivo_excel is None or arquivo_excel.filename is None or arquivo_excel.filename.strip() == "":
+        return jsonify({"erro": "Envie o arquivo XLSX do log de erros."}), 400
+
+    extensao_excel = Path(arquivo_excel.filename.strip()).suffix.lower()
+    if extensao_excel not in (".xlsx", ".xlsm", ".xltx", ".xltm"):
+        return jsonify({"erro": "Formato invalido para log. Envie um arquivo .xlsx."}), 400
+
+    arquivos_rem_validos = [arq for arq in arquivos_rem if arq and arq.filename and arq.filename.strip()]
+    if not arquivos_rem_validos:
+        return jsonify({"erro": "Envie ao menos um arquivo .rem."}), 400
+
+    for arquivo_rem in arquivos_rem_validos:
+        extensao = Path(arquivo_rem.filename.strip()).suffix.lower()
+        if extensao != ".rem":
+            return jsonify({"erro": "Todos os arquivos da direita devem ser .rem."}), 400
+
+    try:
+        conteudo_conciliado = conciliar_pix_bradesco_duplicados(
+            arquivo_excel.stream,
+            [arquivo_rem.stream for arquivo_rem in arquivos_rem_validos],
+        )
+    except ConversionError as exc:
+        return jsonify({"erro": str(exc)}), 400
+    except Exception:
+        return jsonify({"erro": "Falha inesperada ao conciliar arquivos PIX Bradesco."}), 500
+
+    nome_saida = f"duplicados_pix_bradesco_{datetime.now().strftime('%d%m%Y_%H%M%S')}.rem"
+    try:
+        conteudo_bytes = conteudo_conciliado.encode("latin-1")
+        charset = "iso-8859-1"
+    except UnicodeEncodeError:
+        conteudo_bytes = conteudo_conciliado.encode("latin-1", errors="replace")
+        charset = "iso-8859-1"
+
+    return Response(
+        conteudo_bytes,
+        content_type=f"text/plain; charset={charset}",
+        headers={"Content-Disposition": f'attachment; filename="{nome_saida}"'},
+    )
+
 
 @app.errorhandler(413)
 def payload_too_large(_: Exception):

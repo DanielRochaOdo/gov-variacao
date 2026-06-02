@@ -413,7 +413,6 @@ function validateRows(rows: CanonicalRecord[]): { warnings: string[] } {
       "nome_favorecido",
       "data_pagamento",
       "valor_pagamento",
-      "forma_iniciacao",
     ] as const;
 
     for (const field of required) {
@@ -427,7 +426,9 @@ function validateRows(rows: CanonicalRecord[]): { warnings: string[] } {
       continue;
     }
 
-    const forma = cnabNum(row.forma_iniciacao, 2);
+    // Bradesco PIX neste fluxo sempre usa forma 05 (dados bancarios).
+    row.forma_iniciacao = "05";
+    const forma = row.forma_iniciacao;
     row.forma_iniciacao = forma;
 
     if (!FORMA_INICIACAO_VALIDAS.has(forma)) {
@@ -460,7 +461,9 @@ function validateRows(rows: CanonicalRecord[]): { warnings: string[] } {
     }
 
     if (forma === "05") {
-      const neededBankData = ["banco_favorecido", "agencia_favorecido", "dv_agencia_favorecido", "conta_favorecido"] as const;
+      row.dv_agencia_favorecido = "0";
+
+      const neededBankData = ["banco_favorecido", "agencia_favorecido", "conta_favorecido"] as const;
       const missingBank = neededBankData.filter((field) => !text(row[field]));
       if (missingBank.length > 0) {
         errors.push(`Linha ${line}: campos ${missingBank.join(", ")} obrigatorios para forma_iniciacao 05.`);
@@ -469,11 +472,6 @@ function validateRows(rows: CanonicalRecord[]): { warnings: string[] } {
       const agenciaDigits = onlyDigits(row.agencia_favorecido);
       if (agenciaDigits.length < 1 || agenciaDigits.length > 5) {
         errors.push("Linha " + line + ": agencia_favorecido deve ter de 1 a 5 digitos na forma 05. O TXT preenche com zeros a esquerda ate 5.");
-      }
-
-      const dvAgenciaDigits = onlyDigits(row.dv_agencia_favorecido);
-      if (dvAgenciaDigits.length !== 1) {
-        errors.push("Linha " + line + ": dv_agencia_favorecido deve ter exatamente 1 digito na forma 05.");
       }
     }
   }

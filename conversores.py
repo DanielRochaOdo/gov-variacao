@@ -162,6 +162,86 @@ def listar_alertas_valor_zero_bradesco_transferencia(conteudo_txt: str) -> List[
     return alertas
 
 
+def conciliar_pix_bradesco_duplicados(
+    excel_file: BufferedIOBase | BytesIO,
+    rem_files: List[BufferedIOBase | BytesIO],
+) -> str:
+    if not rem_files:
+        raise ConversionError("Envie ao menos um arquivo .rem para conciliacao.")
+
+    chaves_excel = _chaves_conciliacao_excel_log(excel_file)
+    if not chaves_excel:
+        raise ConversionError(
+            "Nao foi possivel montar chaves de conciliacao do XLSX. "
+            "Use colunas como numero_pagamento/seu_numero, documento, banco/agencia/conta, nome e valor."
+        )
+
+    header_arquivo = ""
+    header_lote = ""
+    detalhes_conciliados: List[str] = []
+
+    for rem_file in rem_files:
+        linhas = _linhas_txt_de_stream(rem_file)
+        if not linhas:
+            continue
+
+        if header_arquivo == "":
+            header_arquivo = next((l for l in linhas if _tipo_registro(l) == "0"), "")
+        if header_lote == "":
+            header_lote = next((l for l in linhas if _tipo_registro(l) == "1"), "")
+
+        linha_a_pendente = ""
+        chave_a_pendente = ""
+        sequencial_a_pendente = ""
+        lote_a_pendente = ""
+
+        for linha in linhas:
+            tipo = _tipo_registro(linha)
+            if tipo != "3":
+                continue
+
+            if len(linha) < 14:
+                continue
+
+            segmento = linha[13]
+            if segmento == "A":
+                linha_a_pendente = linha
+                chave_a_pendente = "||".join(_chaves_conciliacao_segmento_a(linha))
+                sequencial_a_pendente = linha[8:13]
+                lote_a_pendente = linha[3:7]
+                continue
+
+            if segmento == "B":
+                if linha_a_pendente == "":
+                    continue
+                if linha[8:13] != sequencial_a_pendente or linha[3:7] != lote_a_pendente:
+                    continue
+                chaves_segmento_a = [chave for chave in chave_a_pendente.split("||") if chave]
+                if any(chave in chaves_excel for chave in chaves_segmento_a):
+                    detalhes_conciliados.append(linha_a_pendente)
+                    detalhes_conciliados.append(linha)
+                linha_a_pendente = ""
+                chave_a_pendente = ""
+                sequencial_a_pendente = ""
+                lote_a_pendente = ""
+
+    if not detalhes_conciliados:
+        raise ConversionError("Nenhum registro em comum foi encontrado entre XLSX e arquivo(s) .rem.")
+
+    if header_arquivo == "":
+        header_arquivo = _normalizar_linha_240("23700000")
+    if header_lote == "":
+        header_lote = _normalizar_linha_240("23700011")
+
+    linhas_saida = [header_arquivo, header_lote]
+    linhas_saida.extend(detalhes_conciliados)
+    linhas_saida.append(_normalizar_linha_240("23700015"))
+    linhas_saida.append(_normalizar_linha_240("23799999"))
+
+    linhas_saida = _corrigir_trailers_bradesco(linhas_saida, TIPO_BRADESCO_TRANSFERENCIA)
+    return "\n".join(linhas_saida) + "\n"
+
+
 def gerar_layout_retorno(excel_file: BufferedIOBase | BytesIO) -> str:
     linhas = [
         _formatar_linha_retorno(row)
@@ -218,6 +298,199 @@ def _decodificar_texto(bruto: bytes) -> str:
         except UnicodeDecodeError:
             continue
     raise ConversionError("Nao foi possivel decodificar o TXT enviado.")
+
+
+def _linhas_txt_de_stream(txt_file: BufferedIOBase | BytesIO) -> List[str]:
+    if hasattr(txt_file, "seek"):
+        txt_file.seek(0)
+    bruto = txt_file.read() if hasattr(txt_file, "read") else txt_file
+    if isinstance(bruto, str):
+        texto = bruto
+    elif isinstance(bruto, (bytes, bytearray)):
+        texto = _decodificar_texto(bytes(bruto))
+    else:
+        raise ConversionError("Arquivo REM invalido.")
+    linhas = texto.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    linhas = [l for l in linhas if l != ""]
+    return [_normalizar_linha_240(l) for l in linhas]
+
+
+def _chaves_conciliacao_excel_log(excel_file: BufferedIOBase | BytesIO) -> set[str]:
+    try:
+        registros_excel = _ler_planilha_excel(excel_file)
+        chaves = {_chave_conciliacao_por_row_excel(row) for row in registros_excel}
+        chaves.discard("")
+        chaves = {chave for chave in chaves if _chave_conciliacao_significativa(chave)}
+        if chaves:
+            return chaves
+    except Exception:
+        pass
+
+    linhas = _linhas_texto_excel_bradesco_log(excel_file)
+    if not linhas:
+        return set()
+
+    chaves: set[str] = set()
+    idx = 0
+    while idx < len(linhas):
+        linha_1 = linhas[idx]
+        linha_2 = linhas[idx + 1] if idx + 1 < len(linhas) else ""
+        tem_linha_documento = bool(
+            re.search(r"\b(cpf|cnpj)\s+do\s+favorecido\b", _normalizar_texto_livre(linha_2))
+        )
+        registro_1 = _extrair_campos_linha_1_log_bradesco(linha_1)
+        documento_2 = _extrair_documento_linha_2_log_bradesco(linha_2) if tem_linha_documento else ""
+
+        if registro_1:
+            numero = registro_1.get("numero_pagamento", "")
+            banco = registro_1.get("banco", "000")
+            agencia = registro_1.get("agencia", "00000")
+            conta = registro_1.get("conta", "000000000000")
+            dv_conta = registro_1.get("dv_conta", "")
+            valor = registro_1.get("valor", "000000000000000")
+
+            ids = [numero]
+            if documento_2:
+                ids.append(documento_2)
+            chaves.update(_gerar_chaves_casamento(banco, agencia, conta, dv_conta, valor, ids))
+
+        idx += 2 if tem_linha_documento else 1
+
+    return chaves
+
+
+def _chaves_conciliacao_segmento_a(linha: str) -> List[str]:
+    banco = _somente_digitos(linha[20:23]).zfill(3)
+    agencia = _somente_digitos(linha[23:28]).zfill(5)
+    conta = _somente_digitos(linha[29:41]).zfill(12)
+    dv_conta = _texto(linha[41:42]).strip().upper()[:1]
+    valor = _somente_digitos(linha[119:134]).zfill(15)
+    documento = _somente_digitos(linha[73:93]).lstrip("0")
+    return sorted(_gerar_chaves_casamento(banco, agencia, conta, dv_conta, valor, [documento]))
+
+
+def _chave_conciliacao_por_row_excel(row: Mapping[str, Any]) -> str:
+    numero_pagamento = _somente_digitos(
+        _primeiro_valor_preenchido(
+            row,
+            "numero_pagamento",
+            "seu_numero",
+            "identificador_pagamento",
+            "nosso_numero",
+            "controle",
+            "id_pagamento",
+        )
+    ).lstrip("0")
+    banco = _cnab_num(_primeiro_valor_preenchido(row, "banco_favorecido", "banco"), 3, default="0")
+    agencia = _cnab_num(_primeiro_valor_preenchido(row, "agencia_favorecido", "agencia"), 5, default="0")
+    conta = _cnab_num(_primeiro_valor_preenchido(row, "conta_favorecido", "conta"), 12, default="0")
+    dv_conta = _texto(_primeiro_valor_preenchido(row, "dv_conta_favorecido", "dv_conta")).strip().upper()[:1]
+    try:
+        valor = _cnab_num(_numero_escalado(_primeiro_valor_preenchido(row, "valor_pagamento", "valor"), 2), 15, default="0")
+    except ConversionError:
+        valor = "000000000000000"
+    nome = _normalizar_texto_livre(_primeiro_valor_preenchido(row, "nome_favorecido", "favorecido", "beneficiario", "nome"))
+    chave_principal = "|".join([numero_pagamento, banco, agencia, conta, dv_conta, valor])
+    if numero_pagamento:
+        return chave_principal
+    return "|".join(["", banco, agencia, conta, dv_conta, valor, nome])
+
+
+def _gerar_chaves_casamento(
+    banco: str,
+    agencia: str,
+    conta: str,
+    dv_conta: str,
+    valor: str,
+    ids: List[str],
+) -> set[str]:
+    banco_norm = _somente_digitos(banco).zfill(3)
+    agencia_dig = _somente_digitos(agencia)
+    conta_dig = _somente_digitos(conta)
+    valor_norm = _somente_digitos(valor).zfill(15)
+    dv_norm = _texto(dv_conta).strip().upper()[:1]
+
+    agencias = {agencia_dig.zfill(5), agencia_dig[-4:].zfill(5)}
+    contas = {conta_dig.zfill(12), conta_dig[-11:].zfill(12), conta_dig[-10:].zfill(12)}
+    dvs = {dv_norm, ""}
+    ids_norm = {_somente_digitos(i).lstrip("0") for i in ids if _somente_digitos(i) != ""}
+    ids_norm.add("")
+
+    chaves: set[str] = set()
+    for id_norm in ids_norm:
+        for ag in agencias:
+            for cc in contas:
+                for dv in dvs:
+                    chaves.add("|".join([id_norm, banco_norm, ag, cc, dv, valor_norm]))
+    return chaves
+
+
+def _normalizar_texto_livre(valor: Any) -> str:
+    texto = _texto(valor).strip().lower()
+    texto = unicodedata.normalize("NFKD", texto)
+    texto = "".join(ch for ch in texto if not unicodedata.combining(ch))
+    texto = re.sub(r"\s+", " ", texto)
+    return texto
+
+
+def _linhas_texto_excel_bradesco_log(excel_file: BufferedIOBase | BytesIO) -> List[str]:
+    try:
+        if hasattr(excel_file, "seek"):
+            excel_file.seek(0)
+        workbook = load_workbook(excel_file, data_only=True, read_only=True)
+    except Exception:
+        return []
+    worksheet = workbook.active
+    linhas: List[str] = []
+    for row in worksheet.iter_rows(values_only=True):
+        texto = " ".join(_texto(valor) for valor in row if _texto(valor) != "").strip()
+        if texto:
+            linhas.append(texto)
+    return linhas
+
+
+def _extrair_campos_linha_1_log_bradesco(linha: str) -> Dict[str, str]:
+    padrao = re.compile(
+        r"(?P<banco>\d{3})\s+(?P<agencia>\d{4,5})-(?P<dv_agencia>[0-9A-Za-z])\s+"
+        r"(?P<conta>\d{6,12})-(?P<dv_conta>[0-9A-Za-z]).*?\s(?P<numero>\d{6,10})\s+"
+        r"(?P<data>\d{2}/\d{2}/\d{4})\s+(?P<valor>\d[\d\.,]*)"
+    )
+    match = padrao.search(linha)
+    if not match:
+        return {}
+    valor_num = _somente_digitos(match.group("valor"))
+    if len(valor_num) >= 3:
+        valor_num = valor_num[:-2] + valor_num[-2:]
+    valor_num = valor_num.zfill(15)
+    return {
+        "banco": _somente_digitos(match.group("banco")).zfill(3),
+        "agencia": _somente_digitos(match.group("agencia")).zfill(5),
+        "conta": _somente_digitos(match.group("conta")).zfill(12),
+        "dv_conta": _texto(match.group("dv_conta")).strip().upper()[:1],
+        "numero_pagamento": _somente_digitos(match.group("numero")).lstrip("0"),
+        "valor": valor_num,
+    }
+
+
+def _extrair_documento_linha_2_log_bradesco(linha: str) -> str:
+    documento = _somente_digitos(linha)
+    if len(documento) >= 11:
+        return documento
+    return ""
+
+
+def _chave_conciliacao_significativa(chave: str) -> bool:
+    partes = chave.split("|")
+    if len(partes) < 6:
+        return False
+    numero_ou_doc = partes[0].strip()
+    banco = partes[1]
+    agencia = partes[2]
+    conta = partes[3]
+    valor = partes[5]
+    if banco == "000" and agencia == "00000" and conta == "000000000000" and valor == "000000000000000":
+        return False
+    return numero_ou_doc != "" or valor != "000000000000000"
 
 
 def _normalizar_linha_240(linha: str) -> str:
@@ -376,7 +649,6 @@ def gerar_layout_bradesco_transferencia(excel_file: BufferedIOBase | BytesIO) ->
             "nome_favorecido",
             "data_pagamento",
             "valor_pagamento",
-            "forma_iniciacao",
             "tipo_inscricao_favorecido",
             "numero_inscricao_favorecido",
         ],
@@ -601,7 +873,6 @@ def _detectar_layout(headers: List[str]) -> str:
         "nome_favorecido",
         "data_pagamento",
         "valor_pagamento",
-        "forma_iniciacao",
         "tipo_inscricao_favorecido",
         "numero_inscricao_favorecido",
     }
@@ -933,18 +1204,8 @@ def _linha_segmento_b(base: Mapping[str, str], lote: str, row: Mapping[str, Any]
 
 
 def _forma_iniciacao_pix(row: Mapping[str, Any]) -> str:
-    valor = _texto(row.get("forma_iniciacao"))
-    digitos = _somente_digitos(valor)
-    if digitos == "":
-        raise ConversionError(
-            f"Linha {_linha_planilha(row)}: forma_iniciacao obrigatoria para PIX. Use 01, 02, 03, 04 ou 05."
-        )
-    forma = digitos[-2:].zfill(2)
-    if forma not in {"01", "02", "03", "04", "05"}:
-        raise ConversionError(
-            f"Linha {_linha_planilha(row)}: forma_iniciacao invalida ({valor!r}). Use 01, 02, 03, 04 ou 05."
-        )
-    return forma
+    # Regra fixa do layout atual: PIX sempre por dados bancarios (05).
+    return "05"
 
 
 def _dados_bancarios_favorecido_segmento_a(
@@ -957,7 +1218,7 @@ def _dados_bancarios_favorecido_segmento_a(
     linha = _linha_planilha(row)
     banco_favorecido_raw = _texto(row.get("banco_favorecido"))
     agencia_favorecido_raw = _texto(row.get("agencia_favorecido"))
-    dv_agencia_favorecido_raw = _texto(row.get("dv_agencia_favorecido")).upper()
+    dv_agencia_favorecido_raw = "0"
     conta_favorecido_raw = _texto(row.get("conta_favorecido"))
 
     banco_favorecido = _cnab_num(banco_favorecido_raw, 3)
@@ -983,16 +1244,7 @@ def _dados_bancarios_favorecido_segmento_a(
         )
     agencia_favorecido = agencia_favorecido_digitos.zfill(5)
 
-    dv_agencia_favorecido_digitos = _somente_digitos(dv_agencia_favorecido_raw)
-    if dv_agencia_favorecido_digitos == "":
-        raise ConversionError(
-            f"Linha {linha}: dv_agencia_favorecido obrigatorio na forma 05. Informe 1 digito."
-        )
-    if len(dv_agencia_favorecido_digitos) != 1:
-        raise ConversionError(
-            f"Linha {linha}: dv_agencia_favorecido invalido. Use somente 1 digito."
-        )
-    dv_agencia_favorecido = dv_agencia_favorecido_digitos
+    dv_agencia_favorecido = _somente_digitos(dv_agencia_favorecido_raw)[-1:] or "0"
 
     if conta_favorecido == "000000000000":
         raise ConversionError(
@@ -1433,3 +1685,4 @@ def _normalizar_decimal(texto: str) -> str:
     elif "," in limpo:
         limpo = limpo.replace(",", ".")
     return limpo
+

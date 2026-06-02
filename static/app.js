@@ -4,11 +4,24 @@ const submitButton = document.getElementById("botao-converter");
 const fileInput = document.getElementById("arquivo");
 const typeInput = document.getElementById("tipo");
 const modelTransferButton = document.getElementById("botao-modelo-transferencia");
+const principalUploadBlock = document.getElementById("bloco-upload-principal");
 const dropzone = document.getElementById("dropzone");
 const selectedFileNameNode = document.getElementById("arquivo-selecionado");
 const previewResumoNode = document.getElementById("preview-resumo");
+const conciliacaoCard = document.getElementById("card-conciliacao-pix");
+const conciliacaoForm = document.getElementById("form-conciliacao-pix");
+const conciliacaoStatusNode = document.getElementById("status-conciliacao");
+const conciliacaoSubmitButton = document.getElementById("botao-conciliar");
+const excelLogInput = document.getElementById("arquivo-excel-log");
+const remFilesInput = document.getElementById("arquivos-rem");
+const excelLogDropzone = document.getElementById("dropzone-excel-log");
+const remDropzone = document.getElementById("dropzone-rem");
+const excelLogSelectedNode = document.getElementById("arquivo-excel-log-selecionado");
+const remSelectedNode = document.getElementById("arquivos-rem-selecionados");
 const ACCEPT_EXCEL = ".xlsx,.xlsm,.xltx,.xltm";
 let droppedFile = null;
+let droppedExcelLogFile = null;
+let droppedRemFiles = [];
 
 function setStatus(message, kind) {
   statusNode.textContent = message || "";
@@ -68,6 +81,37 @@ function atualizarNomeArquivo(file) {
   selectedFileNameNode.textContent = file ? `Arquivo selecionado: ${file.name}` : "Nenhum arquivo selecionado";
 }
 
+function setStatusConciliacao(message, kind) {
+  if (!conciliacaoStatusNode) return;
+  conciliacaoStatusNode.textContent = message || "";
+  conciliacaoStatusNode.classList.remove("ok", "err", "warn");
+  if (kind) conciliacaoStatusNode.classList.add(kind);
+}
+
+function arquivoExcelLogAtual() {
+  return droppedExcelLogFile || excelLogInput?.files?.[0] || null;
+}
+
+function arquivosRemAtuais() {
+  const files = droppedRemFiles.length > 0 ? droppedRemFiles : Array.from(remFilesInput?.files || []);
+  return files.filter(Boolean);
+}
+
+function atualizarNomeArquivoExcelLog(file) {
+  if (!excelLogSelectedNode) return;
+  excelLogSelectedNode.textContent = file ? `Arquivo selecionado: ${file.name}` : "Nenhum arquivo selecionado";
+}
+
+function atualizarNomeArquivosRem(files) {
+  if (!remSelectedNode) return;
+  if (!files || files.length === 0) {
+    remSelectedNode.textContent = "Nenhum arquivo selecionado";
+    return;
+  }
+  const nomes = files.map((file) => file.name);
+  remSelectedNode.textContent = `Arquivos selecionados (${files.length}): ${nomes.join(", ")}`;
+}
+
 function definirArquivoPorDrop(file) {
   droppedFile = file;
   atualizarNomeArquivo(file);
@@ -77,6 +121,18 @@ function atualizarVisibilidadeModeloTransferencia() {
   if (!modelTransferButton) return;
   const mostrar = typeInput.value === "BRADESCO_TRANSFERENCIA";
   modelTransferButton.classList.toggle("hidden", !mostrar);
+}
+
+function atualizarVisibilidadeConciliacao() {
+  if (!conciliacaoCard) return;
+  const mostrar = typeInput.value === "PIX_BRADESCO_CONCILIACAO";
+  conciliacaoCard.classList.toggle("hidden", !mostrar);
+  if (principalUploadBlock) {
+    principalUploadBlock.classList.toggle("hidden", mostrar);
+  }
+  if (submitButton) {
+    submitButton.classList.toggle("hidden", mostrar);
+  }
 }
 
 function lerAlertasValorZero(response) {
@@ -129,6 +185,10 @@ form.addEventListener("submit", async (event) => {
 
   if (!typeInput.value) {
     setStatus("Selecione o tipo do layout antes de converter.", "err");
+    return;
+  }
+  if (typeInput.value === "PIX_BRADESCO_CONCILIACAO") {
+    setStatus("Para esse tipo, use o formulario de conciliacao logo abaixo.", "warn");
     return;
   }
 
@@ -193,6 +253,7 @@ form.addEventListener("submit", async (event) => {
 typeInput.addEventListener("change", () => {
   atualizarFiltroArquivo();
   atualizarVisibilidadeModeloTransferencia();
+  atualizarVisibilidadeConciliacao();
 });
 
 fileInput.addEventListener("change", () => {
@@ -242,6 +303,129 @@ if (dropzone) {
   });
 }
 
+if (conciliacaoForm) {
+  conciliacaoForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const excelLog = arquivoExcelLogAtual();
+    const remFiles = arquivosRemAtuais();
+    if (!excelLog) {
+      setStatusConciliacao("Selecione o arquivo XLSX do log de erros.", "err");
+      return;
+    }
+    if (remFiles.length === 0) {
+      setStatusConciliacao("Selecione ao menos um arquivo .rem.", "err");
+      return;
+    }
+
+    conciliacaoSubmitButton.disabled = true;
+    setStatusConciliacao("Conciliando arquivos...", null);
+
+    try {
+      const formData = new FormData();
+      formData.append("arquivo_excel", excelLog);
+      remFiles.forEach((file) => formData.append("arquivos_rem", file));
+
+      const response = await fetch("/api/pix-bradesco-conciliacao", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        let errorMessage = "Nao foi possivel conciliar os arquivos.";
+        try {
+          const payload = await response.json();
+          errorMessage = payload.erro || errorMessage;
+        } catch (_error) {
+          // Usa mensagem padrao.
+        }
+        setStatusConciliacao(errorMessage, "err");
+        return;
+      }
+
+      await baixarRespostaComoArquivo(response, "duplicados_pix_bradesco.rem");
+      setStatusConciliacao("Conciliacao concluida com sucesso.", "ok");
+    } catch (_error) {
+      setStatusConciliacao("Falha de conexao. Tente novamente.", "err");
+    } finally {
+      conciliacaoSubmitButton.disabled = false;
+    }
+  });
+}
+
+if (excelLogInput) {
+  excelLogInput.addEventListener("change", () => {
+    droppedExcelLogFile = null;
+    atualizarNomeArquivoExcelLog(excelLogInput.files?.[0] || null);
+  });
+}
+
+if (remFilesInput) {
+  remFilesInput.addEventListener("change", () => {
+    droppedRemFiles = [];
+    atualizarNomeArquivosRem(Array.from(remFilesInput.files || []));
+  });
+}
+
+function registrarDropzoneArquivoUnico(dropzoneNode, inputNode, onFile) {
+  if (!dropzoneNode || !inputNode) return;
+  dropzoneNode.addEventListener("click", () => inputNode.click());
+  dropzoneNode.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      inputNode.click();
+    }
+  });
+  dropzoneNode.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    dropzoneNode.classList.add("dragover");
+  });
+  dropzoneNode.addEventListener("dragleave", () => dropzoneNode.classList.remove("dragover"));
+  dropzoneNode.addEventListener("drop", (event) => {
+    event.preventDefault();
+    dropzoneNode.classList.remove("dragover");
+    const file = event.dataTransfer?.files?.[0];
+    if (!file) return;
+    onFile(file);
+  });
+}
+
+function registrarDropzoneMultiplosArquivos(dropzoneNode, inputNode, onFiles) {
+  if (!dropzoneNode || !inputNode) return;
+  dropzoneNode.addEventListener("click", () => inputNode.click());
+  dropzoneNode.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      inputNode.click();
+    }
+  });
+  dropzoneNode.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    dropzoneNode.classList.add("dragover");
+  });
+  dropzoneNode.addEventListener("dragleave", () => dropzoneNode.classList.remove("dragover"));
+  dropzoneNode.addEventListener("drop", (event) => {
+    event.preventDefault();
+    dropzoneNode.classList.remove("dragover");
+    const files = Array.from(event.dataTransfer?.files || []);
+    if (files.length === 0) return;
+    onFiles(files);
+  });
+}
+
+registrarDropzoneArquivoUnico(excelLogDropzone, excelLogInput, (file) => {
+  droppedExcelLogFile = file;
+  atualizarNomeArquivoExcelLog(file);
+});
+
+registrarDropzoneMultiplosArquivos(remDropzone, remFilesInput, (files) => {
+  droppedRemFiles = files;
+  atualizarNomeArquivosRem(files);
+});
+
 atualizarFiltroArquivo();
 atualizarVisibilidadeModeloTransferencia();
+atualizarVisibilidadeConciliacao();
 atualizarNomeArquivo(null);
+atualizarNomeArquivoExcelLog(null);
+atualizarNomeArquivosRem([]);

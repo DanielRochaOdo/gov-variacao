@@ -29,20 +29,23 @@
             <option value="VARIACAO">VARIACAO</option>
             <option value="BRADESCO_TRANSFERENCIA">PAGAMENTO BRADESCO &gt; PIX</option>
             <option value="BRADESCO_BOLETO">PAGAMENTO BRADESCO &gt; BOLETO</option>
+            <option value="PIX_BRADESCO_CONCILIACAO">PIX BRADESCO &gt; CONCILIACAO</option>
           </select>
 
-          <label for="arquivo">Arquivo (.xlsx)</label>
-          <div id="dropzone" class="dropzone" role="button" tabindex="0" aria-describedby="dropzone-help">
-            <p class="dropzone-title">Arraste o arquivo aqui ou clique para selecionar</p>
-            <p id="dropzone-help" class="dropzone-subtitle">Formatos aceitos: .xlsx, .xlsm, .xltx, .xltm</p>
-            <p id="arquivo-selecionado" class="dropzone-filename">Nenhum arquivo selecionado</p>
-            <input
-              id="arquivo"
-              name="arquivo"
-              class="dropzone-input"
-              type="file"
-              accept=".xlsx,.xlsm,.xltx,.xltm"
-            />
+          <div id="bloco-upload-principal">
+            <label for="arquivo">Arquivo (.xlsx)</label>
+            <div id="dropzone" class="dropzone" role="button" tabindex="0" aria-describedby="dropzone-help">
+              <p class="dropzone-title">Arraste o arquivo aqui ou clique para selecionar</p>
+              <p id="dropzone-help" class="dropzone-subtitle">Formatos aceitos: .xlsx, .xlsm, .xltx, .xltm</p>
+              <p id="arquivo-selecionado" class="dropzone-filename">Nenhum arquivo selecionado</p>
+              <input
+                id="arquivo"
+                name="arquivo"
+                class="dropzone-input"
+                type="file"
+                accept=".xlsx,.xlsm,.xltx,.xltm"
+              />
+            </div>
           </div>
 
           <a
@@ -58,6 +61,66 @@
         </form>
 
         <p id="status" class="status" aria-live="polite"></p>
+      </section>
+
+      <section id="card-conciliacao-pix" class="card card-full hidden">
+        <form id="form-conciliacao-pix">
+          <h2 class="section-title">PIX BRADESCO - CONCILIACAO</h2>
+          <p class="section-subtitle">
+            Envie o log de erros (.xlsx) e o(s) arquivo(s) .rem para gerar um novo .rem com os registros duplicados.
+          </p>
+
+          <div class="duo-grid">
+            <div>
+              <label for="arquivo-excel-log">Log de erros (XLSX)</label>
+              <div
+                id="dropzone-excel-log"
+                class="dropzone"
+                role="button"
+                tabindex="0"
+                aria-describedby="dropzone-excel-log-help"
+              >
+                <p class="dropzone-title">Upload do XLSX</p>
+                <p id="dropzone-excel-log-help" class="dropzone-subtitle">Formatos aceitos: .xlsx, .xlsm, .xltx, .xltm</p>
+                <p id="arquivo-excel-log-selecionado" class="dropzone-filename">Nenhum arquivo selecionado</p>
+                <input
+                  id="arquivo-excel-log"
+                  name="arquivo_excel"
+                  class="dropzone-input"
+                  type="file"
+                  accept=".xlsx,.xlsm,.xltx,.xltm"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label for="arquivos-rem">Arquivo(s) REM do PIX Bradesco</label>
+              <div
+                id="dropzone-rem"
+                class="dropzone"
+                role="button"
+                tabindex="0"
+                aria-describedby="dropzone-rem-help"
+              >
+                <p class="dropzone-title">Upload do(s) .rem</p>
+                <p id="dropzone-rem-help" class="dropzone-subtitle">Formatos aceitos: .rem (um ou mais arquivos)</p>
+                <p id="arquivos-rem-selecionados" class="dropzone-filename">Nenhum arquivo selecionado</p>
+                <input
+                  id="arquivos-rem"
+                  name="arquivos_rem"
+                  class="dropzone-input"
+                  type="file"
+                  accept=".rem"
+                  multiple
+                />
+              </div>
+            </div>
+          </div>
+
+          <button id="botao-conciliar" type="submit">Conciliar e baixar .rem duplicados</button>
+        </form>
+
+        <p id="status-conciliacao" class="status" aria-live="polite"></p>
       </section>
     </main>
 

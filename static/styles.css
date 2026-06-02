@@ -283,6 +283,28 @@ button:disabled {
   font-weight: 600;
 }
 
+.card-full {
+  grid-column: 1 / -1;
+}
+
+.section-title {
+  margin: 0;
+  font-family: "Roobert PRO Medium", "Noto Sans", sans-serif;
+  font-size: 1.18rem;
+}
+
+.section-subtitle {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--tw-color-slate);
+}
+
+.duo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem;
+}
+
 .status.ok {
   color: var(--tw-color-success-accent);
 }
@@ -312,6 +334,10 @@ button:disabled {
   }
 
   .preview-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .duo-grid {
     grid-template-columns: 1fr;
   }
 }
