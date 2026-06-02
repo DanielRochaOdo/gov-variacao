@@ -219,6 +219,8 @@ def _gerar_modelo_bradesco_transferencia() -> BytesIO:
     for row in help_sheet.iter_rows():
         for cell in row:
             cell.alignment = Alignment(vertical="top", wrap_text=True)
+    for row in range(2, 7):
+        help_sheet.cell(row=row, column=2).alignment = Alignment(vertical="top", wrap_text=False)
     for cell in help_sheet[8]:
         cell.font = Font(bold=True)
         cell.fill = header_fill
